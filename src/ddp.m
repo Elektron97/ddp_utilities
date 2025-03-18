@@ -1,5 +1,12 @@
 % Copyright (C) 2019 Maitreya Venkataswamy - All Rights Reserved
 
+% Modification by SoRoSim team
+%%%      DDP for GVS Hybrid-Kinematic Chain                   %%%
+% This code is a readaption of the code developed by            %
+% Maitreya Venkataswamy, to fit in the SoRoSim Framework.       %
+% Original code: https://github.com/maitreyakv/ddp-simulation.  %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 %% Differential Dynamic Programming Algorithm Function
 
 % Performs Differential Dynamic Programming Algorithm to produce a
@@ -21,7 +28,7 @@
 % 
 % sol : structure with solution components
 %
-function sol = ddp(x_0, x_star, t_f, N, dyn, cost, u_max, num_iter, alpha)
+function sol = ddp(x_0, t_f, N, dyn, cost, u_max, num_iter, alpha)
     %% Allocate arrays for DDP
 
     % Time stamp array and timestep
@@ -39,7 +46,8 @@ function sol = ddp(x_0, x_star, t_f, N, dyn, cost, u_max, num_iter, alpha)
     x_new = cell(N, 1);
     x{1} = x_0;
     x_new{1} = x_0;
-    
+
+
     % Control Input trajectory
     u = cell(N, 1);
     
@@ -67,10 +75,17 @@ function sol = ddp(x_0, x_star, t_f, N, dyn, cost, u_max, num_iter, alpha)
     u{N} = zeros(numel(u_max), 1);
     
     fprintf("generating initial trajectory...\n")
+
+    x_dot = cell(N, 1);
+    x_dot{1} = dyn.F(t(1), x_new{1}, u{1});
     
     % Generate initial trajectory using random control sequence
     for k = 1:N-1
-        x_new{k+1} = x_new{k} + dyn.F(x_new{k}, u{k}) .* dt;
+        % Store x_dot
+        x_dot{k + 1} = dyn.F(t(k), x_new{k}, u{k});
+
+        % Explicit Forward Euler
+        x_new{k+1} = x_new{k} + dyn.F(t(k), x_new{k}, u{k}) .* dt;
     end
     
     %% Perform main DDP iterations on the trajectory and input sequence
@@ -97,7 +112,7 @@ function sol = ddp(x_0, x_star, t_f, N, dyn, cost, u_max, num_iter, alpha)
                 u{k} = u{k} + alpha .* (du_ff + du_fb);
                 
                 % Compute next state in trajectory with new control
-                x_new{k+1} = x_new{k} + dyn.F(x_new{k}, u{k}) .* dt;
+                x_new{k+1} = x_new{k} + dyn.F(t(k), x_new{k}, u{k}) .* dt;
                 
                 % Return error if problem with trajectory
                 if isnan(x_new{k+1})
@@ -129,23 +144,25 @@ function sol = ddp(x_0, x_star, t_f, N, dyn, cost, u_max, num_iter, alpha)
         
         % Perform backwards pass
         for k = N-1:-1:1
-            % Compute state-action value function derivatives
+            % Compute Analytical Derivatives
+            [fx, fu] = dyn.analytical_derivatives(t(k), x{k}, x_dot{k}, u{k});
+
             Q_x{k} = cost.L_x(x{k}, u{k}, dt) + ...
-                     dyn.Phi(x{k}, u{k}, dt).' * V_x{k+1};
+                     fx.' * V_x{k+1};
             Q_u{k} = cost.L_u(x{k}, u{k}, dt) + ...
-                     dyn.beta(x{k}, u{k}, dt).' * V_x{k+1};
+                     fu.' * V_x{k+1};
             Q_xx{k} = cost.L_xx(x{k}, u{k}, dt) ...
-                      + dyn.Phi(x{k}, u{k}, dt).' * V_xx{k+1} ...
-                      * dyn.Phi(x{k}, u{k}, dt);
+                      + fx.' * V_xx{k+1} ...
+                      * fx;
             Q_uu{k} = cost.L_uu(x{k}, u{k}, dt) ...
-                      + dyn.beta(x{k}, u{k}, dt).' * V_xx{k+1} ...
-                      * dyn.beta(x{k}, u{k}, dt);
+                      + fu.' * V_xx{k+1} ...
+                      * fu;
             Q_xu{k} = cost.L_xu(x{k}, u{k}, dt) ...
-                      + dyn.Phi(x{k}, u{k}, dt).' * V_xx{k+1} ...
-                      * dyn.beta(x{k}, u{k}, dt);
+                      + fx.' * V_xx{k+1} ...
+                      * fu;
             Q_ux{k} = cost.L_ux(x{k}, u{k}, dt) ...
-                      + dyn.beta(x{k}, u{k}, dt).' * V_xx{k+1} ...
-                      * dyn.Phi(x{k}, u{k}, dt);
+                      + fu.' * V_xx{k+1} ...
+                      * fx;
                
             % Compute the value function derivatives
             V_x{k} = Q_x{k} - Q_xu{k} * (Q_uu{k} \ Q_u{k});

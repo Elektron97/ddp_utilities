@@ -3,12 +3,10 @@
 % Abstract class for system dynamics
 classdef (Abstract) Dynamics
     methods
-        % Equations of motion in state space representation
-        dxdt = F(obj, x, u)
+        %% Equations of Motion
+        dxdt = F(obj, t, x, u)
         
-        % Linearized equations of motion
-        Phi = Phi(obj, x, u, dt);
-        beta = beta(obj, x, u, dt);
+        %% Analytical Derivatives
+        [fx, fu] = analytical_derivatives(obj, t, x, xdot, u);
     end
 end
-
