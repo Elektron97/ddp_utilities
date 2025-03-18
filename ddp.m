@@ -28,19 +28,18 @@
 % 
 % sol : structure with solution components
 %
-function sol = ddp(x_0, t_f, N, dyn, cost, u_max, num_iter, alpha)
+function sol = ddp(x_0, x_star, t_f, N, dyn, cost, u_max, num_iter, alpha)
     %% Allocate arrays for DDP
-
     % Time stamp array and timestep
     t = linspace(0.0, t_f, N);
     dt = t(2) - t(1);
-    
+
     % Cost history
     J = zeros(num_iter, 1);
-    
+
     % Control energy history
     E = zeros(num_iter, 1);
-    
+
     % State trajectory
     x = cell(N, 1);
     x_new = cell(N, 1);
@@ -50,12 +49,12 @@ function sol = ddp(x_0, t_f, N, dyn, cost, u_max, num_iter, alpha)
 
     % Control Input trajectory
     u = cell(N, 1);
-    
+
     % Value function and derivatives
     V = zeros(N, 1);
     V_x = cell(N, 1);
     V_xx = cell(N, 1);
-    
+
     % State action value derivatives
     Q_x = cell(N, 1);
     Q_u = cell(N, 1);
@@ -67,53 +66,54 @@ function sol = ddp(x_0, t_f, N, dyn, cost, u_max, num_iter, alpha)
     %% Initialize DDP with a random input sequence
 
     fprintf("initializing random control sequence...\n")
-    
+
     % Generate random control sequence
     for k = 1:N-1
         u{k} = 2 .* u_max .* rand(length(u_max), 1) - u_max;
     end
     u{N} = zeros(numel(u_max), 1);
-    
+
     fprintf("generating initial trajectory...\n")
 
-    x_dot = cell(N, 1);
-    x_dot{1} = dyn.F(t(1), x_new{1}, u{1});
-    
+    x_dot = cell(N - 1, 1);
+
     % Generate initial trajectory using random control sequence
     for k = 1:N-1
         % Store x_dot
-        x_dot{k + 1} = dyn.F(t(k), x_new{k}, u{k});
+        x_dot{k} = dyn.dynamics(t(k), x_new{k}, u{k});
 
         % Explicit Forward Euler
-        x_new{k+1} = x_new{k} + dyn.F(t(k), x_new{k}, u{k}) .* dt;
+        x_new{k+1} = x_new{k} + x_dot{k} .* dt;
     end
-    
+
     %% Perform main DDP iterations on the trajectory and input sequence
-    
+
     fprintf("beginning DDP...\n")
-    
+
     for i = 1:num_iter
         fprintf("DDP iteration %d out of %d...\n", i, num_iter);
-        
+
         % Update control sequence from previous iteration
         if i > 1
+            %% Forward Pass
             for k = 1:N-1
-                % Compute control update feed-forward and feed-back
-                du_ff = -inv(Q_uu{k}) * Q_u{k};
-                du_fb = -inv(Q_uu{k}) * Q_ux{k} * (x_new{k} - x{k});
-                
+                % Compute control update feed-forward and feed-back                
+                du_ff = -Q_uu{k} \ Q_u{k};
+                du_fb = -(Q_uu{k} \ Q_ux{k}) * (x_new{k} - x{k});
+
                 % Limit feed forward control modification with clamping
                 for m = 1:numel(u_max)
-                    du_ff(m) = min(u_max(m), max(-u_max(m), ...
-                                         du_ff(m) + u{k}(m))) - u{k}(m);
+                    du_ff(m) = min(u_max(m), max(-u_max(m), du_ff(m) + u{k}(m))) - u{k}(m);
                 end
-                
+
                 % Update control
                 u{k} = u{k} + alpha .* (du_ff + du_fb);
-                
+
                 % Compute next state in trajectory with new control
-                x_new{k+1} = x_new{k} + dyn.F(t(k), x_new{k}, u{k}) .* dt;
-                
+                % Store x_dot
+                x_dot{k} = dyn.dynamics(t(k), x_new{k}, u{k});
+                x_new{k+1} = x_new{k} + x_dot{k} .* dt;
+
                 % Return error if problem with trajectory
                 if isnan(x_new{k+1})
                     sol = assemble_solution(x, u, t, J, E, Q_u, ...
@@ -122,58 +122,49 @@ function sol = ddp(x_0, t_f, N, dyn, cost, u_max, num_iter, alpha)
                 end
             end
         end
-        
+
         % Update the current trajectory
         x = x_new;
-        
+
         % Compute total cost
         J(i) = cost.phi(x{N}, x_star);
         for k = 1:N-1
             J(i) = J(i) + cost.L(x{k}, u{k}, dt);
         end
-        
+
         % Compute control energy usage
         for k = 1:N-1
             E(i) = E(i) + 0.5 .* u{k}.' * u{k} .* dt;
         end
-        
+
+        %% Backwards Pass
         % Compute terminal value function and derivatives
         V(N) = cost.phi(x{N}, x_star);
         V_x{N} = cost.phi_x(x{N}, x_star);
         V_xx{N} = cost.phi_xx(x{N}, x_star);
-        
+
         % Perform backwards pass
         for k = N-1:-1:1
             % Compute Analytical Derivatives
             [fx, fu] = dyn.analytical_derivatives(t(k), x{k}, x_dot{k}, u{k});
 
-            Q_x{k} = cost.L_x(x{k}, u{k}, dt) + ...
-                     fx.' * V_x{k+1};
-            Q_u{k} = cost.L_u(x{k}, u{k}, dt) + ...
-                     fu.' * V_x{k+1};
-            Q_xx{k} = cost.L_xx(x{k}, u{k}, dt) ...
-                      + fx.' * V_xx{k+1} ...
-                      * fx;
-            Q_uu{k} = cost.L_uu(x{k}, u{k}, dt) ...
-                      + fu.' * V_xx{k+1} ...
-                      * fu;
-            Q_xu{k} = cost.L_xu(x{k}, u{k}, dt) ...
-                      + fx.' * V_xx{k+1} ...
-                      * fu;
-            Q_ux{k} = cost.L_ux(x{k}, u{k}, dt) ...
-                      + fu.' * V_xx{k+1} ...
-                      * fx;
-               
+            Q_x{k} = cost.L_x(x{k}, u{k}, dt) + fx.' * V_x{k+1};
+            Q_u{k} = cost.L_u(x{k}, u{k}, dt) + fu.' * V_x{k+1};
+            Q_xx{k} = cost.L_xx(x{k}, u{k}, dt) + fx.' * V_xx{k+1} * fx;
+            Q_uu{k} = cost.L_uu(x{k}, u{k}, dt) + fu.' * V_xx{k+1} * fu;
+            Q_xu{k} = cost.L_xu(x{k}, u{k}, dt) + fx.' * V_xx{k+1} * fu;
+            Q_ux{k} = cost.L_ux(x{k}, u{k}, dt) + fu.' * V_xx{k+1} * fx;
+
             % Compute the value function derivatives
             V_x{k} = Q_x{k} - Q_xu{k} * (Q_uu{k} \ Q_u{k});
             V_xx{k} = Q_xx{k} - Q_xu{k} * (Q_uu{k} \ Q_ux{k});
         end
     end
-    
+
     %% Assemble and return solution structure
-    
+
     fprintf("finished DDP, assembling results for post-processing...\n");
-    
+
     % Assemble solution
     sol = assemble_solution(x, u, t, J, E, Q_u, Q_uu, Q_ux, 0);
 end
@@ -209,6 +200,6 @@ function sol = assemble_solution(x, u, t, J, E, Q_u, Q_uu, Q_ux, error)
     sol.Q_u = Q_u;
     sol.Q_uu = Q_uu;
     sol.Q_ux = Q_ux;
-    
+
     return
 end

@@ -5,6 +5,7 @@ classdef GVS_Dynamics < Dynamics
     properties
         robot_linkage       % SoRoSim Object
         ndof                % n. of DoFs
+        nx                  % dimension of the state space
         nact
     end
 
@@ -14,6 +15,7 @@ classdef GVS_Dynamics < Dynamics
             % Init
             obj.robot_linkage = robot_linkage;
             obj.ndof = obj.robot_linkage.ndof;
+            obj.nx = 2*obj.ndof;
             obj.nact = obj.robot_linkage.nact;
         end
 
@@ -36,7 +38,7 @@ classdef GVS_Dynamics < Dynamics
             dae_index = 1;
             % lambda is required in case of closed-loop joint
             lambda = [];
-            [~,~,~,dID_dq,dID_dqd,dID_dqdd,~,dtau_dq,dtau_dqd,dtau_du,~,~,~,~,~] = Tr.DAEJacobians(t, q, qd, qdd, u, lambda, dae_index);
+            [~,~,~,dID_dq,dID_dqd,dID_dqdd,~,dtau_dq,dtau_dqd,dtau_du,~,~,~,~,~] = obj.robot_linkage.DAEJacobians(t, q, qd, qdd, u, lambda, dae_index);
             
             % Computing Derivatives
             B = dtau_du;
