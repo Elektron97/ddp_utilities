@@ -77,15 +77,15 @@ function sol = my_ddp(x_0, t_f, N, dyn, cost, u_max, num_iter, alpha)
     fprintf("generating initial trajectory...\n")
 
     x_dot = cell(N, 1);
-    x_dot{1} = dyn.F(t(1), x_new{1}, u{1});
+    x_dot{1} = dyn.dynamics(t(1), x_new{1}, u{1});
     
     % Generate initial trajectory using random control sequence
     for k = 1:N-1
         % Store x_dot
-        x_dot{k + 1} = dyn.F(t(k), x_new{k}, u{k});
+        x_dot{k + 1} = dyn.dynamics(t(k), x_new{k}, u{k});
 
         % Explicit Forward Euler
-        x_new{k+1} = x_new{k} + dyn.F(t(k), x_new{k}, u{k}) .* dt;
+        x_new{k+1} = x_new{k} + dyn.dynamics(t(k), x_new{k}, u{k}) .* dt;
     end
     
     %% Perform main DDP iterations on the trajectory and input sequence
@@ -112,7 +112,7 @@ function sol = my_ddp(x_0, t_f, N, dyn, cost, u_max, num_iter, alpha)
                 u{k} = u{k} + alpha .* (du_ff + du_fb);
                 
                 % Compute next state in trajectory with new control
-                x_new{k+1} = x_new{k} + dyn.F(t(k), x_new{k}, u{k}) .* dt;
+                x_new{k+1} = x_new{k} + dyn.dynamics(t(k), x_new{k}, u{k}) .* dt;
                 
                 % Return error if problem with trajectory
                 if isnan(x_new{k+1})
