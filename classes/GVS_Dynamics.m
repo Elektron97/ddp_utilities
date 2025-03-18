@@ -15,16 +15,10 @@ classdef GVS_Dynamics < Dynamics
             obj.robot_linkage = robot_linkage;
             obj.ndof = obj.robot_linkage.ndof;
             obj.nact = obj.robot_linkage.nact;
-
-            % Libraries
-            addpath("functions")
         end
 
         %% Dynamics
-        function x_dot = dynamics(obj, x, u)
-            % For now: time-invariant implementation
-            t = 0;
-
+        function x_dot = dynamics(obj, t, x, u)
             % dynamicsSolver function
             [y,~,~,~] = obj.robot_linkage.dynamicsSolver(t, x, u);
             
@@ -34,7 +28,25 @@ classdef GVS_Dynamics < Dynamics
 
         %% Analytical Derivatives (First Order)
         function [fx, fu] = analytical_derivatives(obj, t, x, xdot, u)
+            q    = x(1:obj.ndof);
+            qd   = x(obj.ndof +1:2*obj.ndof);
+            qdd  = xdot(obj.ndof +1:2*obj.ndof);
             
+            %% DAE Jacobian
+            dae_index = 1;
+            % lambda is required in case of closed-loop joint
+            lambda = [];
+            [~,~,~,dID_dq,dID_dqd,dID_dqdd,~,dtau_dq,dtau_dqd,dtau_du,~,~,~,~,~] = Tr.DAEJacobians(t, q, qd, qdd, u, lambda, dae_index);
+            
+            % Computing Derivatives
+            B = dtau_du;
+            M = dID_dqdd;
+            dFDdq  = M\(dtau_dq-dID_dq);
+            dFDdqd = M\(dtau_dqd-dID_dqd);
+
+            %% Gradients
+            fx = [zeros(obj.ndof, obj.ndof), eye(obj.ndof); dFDdq, dFDdqd];
+            fu = [zeros(obj.ndof, obj.nact); M\B];
         end
 
     end
