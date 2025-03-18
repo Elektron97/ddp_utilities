@@ -7,6 +7,10 @@
 % Original code: https://github.com/maitreyakv/ddp-simulation.  %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+%%% We improved the code using https://github.com/imgeorgiev/ddp %%%
+% https://github.com/Alescontrela/DDP_Examples.                    %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 %% Differential Dynamic Programming Algorithm Function
 
 % Performs Differential Dynamic Programming Algorithm to produce a
