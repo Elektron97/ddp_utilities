@@ -17,12 +17,20 @@ classdef QuadraticCost < Cost
         
         % Terminal state cost
         function phi = phi(obj, x_f, x_star)
-            phi = 0.5 .* (x_f - x_star).' * obj.Q_f * (x_f - x_star);
+            error_f = x_f - x_star;
+            % WrapToPi Correction on theta1 and theta2
+            error_f(1:2) = wrapToPi(error_f(1:2));
+
+            phi = 0.5 .* (error_f).' * obj.Q_f * (error_f);
         end
         
         % Terminal state cost derivatives
         function phi_x = phi_x(obj, x_f, x_star)
-            phi_x = obj.Q_f * (x_f - x_star);
+            error_f = x_f - x_star;
+            % WrapToPi Correction on theta1 and theta2
+            error_f(1:2) = wrapToPi(error_f(1:2));
+
+            phi_x = obj.Q_f * error_f;
         end
         function phi_xx = phi_xx(obj, ~, ~)
             phi_xx = obj.Q_f;

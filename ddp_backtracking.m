@@ -32,7 +32,19 @@
 % 
 % sol : structure with solution components
 %
-function sol = ddp_backtracking(x0, x_goal, t_f, N, dyn, cost, num_iter, alpha)
+function sol = ddp_backtracking(x0, x_goal, t_f, N, dyn, cost, num_iter, options)
+    arguments
+        x0
+        x_goal
+        t_f
+        N
+        dyn
+        cost
+        num_iter
+        options.alpha = 1.0
+        options.show_online = true
+    end
+
     %% Init
     % Time stamp array and timestep
     t = linspace(0.0, t_f, N);
@@ -74,15 +86,31 @@ function sol = ddp_backtracking(x0, x_goal, t_f, N, dyn, cost, num_iter, alpha)
         x(:, k + 1) = x(:, k) + dt*x_dot(:, k);
     end
 
+    %% Show Online
+    if options.show_online
+        f1 = figure;
+        plot(nan, nan);
+    end
+
     %% Main Loop
     for i = 1:num_iter
         disp("Iteration " + num2str(i));
 
-        %% Backward Pass
         % Compute total cost
         J(i) = cost.phi(x(:, N), x_goal);
         for k = 1:N-1
             J(i) = J(i) + cost.L(x(:, k), u(:, k), dt);
+        end
+
+        %% Show Total Cost
+        if options.show_online && i > 1
+            figure(f1)
+            plot(J(1:i), 'LineWidth', 2.0, 'Marker', 'o')
+            grid on
+            xlabel("N° of iterations")
+            ylabel("Total Cost J")
+            xlim([1, i])
+            drawnow
         end
 
         %% Backwards pass
@@ -90,7 +118,14 @@ function sol = ddp_backtracking(x0, x_goal, t_f, N, dyn, cost, num_iter, alpha)
 
         %% Forward Pass
         % Backtracking
-        [x, u, x_dot] = forward_pass(dyn, t, x, u, Q_u, Q_ux, Q_uu, N, dt, alpha);
+        [x, u, x_dot] = forward_pass(dyn, t, x, u, Q_u, Q_ux, Q_uu, N, dt, options.alpha);
+
+        %% Stopping Conditions
+        if(anynan(x) || anynan(u))
+            disp("Error: NaN in the solutions. Stopping...");
+            % Assemble solution
+            sol = assemble_solution(x, u, t, J, Q_u, Q_uu, Q_ux, 1);
+        end
     end  
 
     %% Assemble and return solution structure
@@ -149,6 +184,10 @@ function [x_star, u_star, x_dot_star] = forward_pass(dyn, t, x, u, Q_u, Q_ux, Q_
     % Backtracking
     for k = 1:N-1
         error = x_star(:, k) - x(:, k);
+        
+        % WrapToP Correction
+        error(1:2) = wrapToPi(error(1:2));
+
         % Update control
         u_star(:, k) = u(:, k) - (Q_uu(:, :, k)) \ (alpha.*Q_u(:, k) + Q_ux(:, :, k)*error);
 
