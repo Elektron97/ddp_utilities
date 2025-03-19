@@ -1,4 +1,4 @@
-% Copyright (C) 2019 Maitreya Venkataswamy - All Rights Reserved
+% Copyright (C) 2019 Maitreya Venkataswamy - All Rights Reserved 
 
 % Modification by SoRoSim team
 %%%      DDP for GVS Hybrid-Kinematic Chain                   %%%
