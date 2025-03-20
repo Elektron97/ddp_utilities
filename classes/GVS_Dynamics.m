@@ -29,7 +29,7 @@ classdef GVS_Dynamics < Dynamics
         end
 
         %% Analytical Derivatives (First Order)
-        function [fx, fu] = analytical_derivatives(obj, t, x, xdot, u)
+        function [fx, fu] = analytical_derivatives(obj, t, x, xdot, u, dt)
             q    = x(1:obj.ndof);
             qd   = x(obj.ndof +1:2*obj.ndof);
             qdd  = xdot(obj.ndof +1:2*obj.ndof);
@@ -49,6 +49,10 @@ classdef GVS_Dynamics < Dynamics
             %% Gradients
             fx = [zeros(obj.ndof, obj.ndof), eye(obj.ndof); dFDdq, dFDdqd];
             fu = [zeros(obj.ndof, obj.nact); M\B];
+
+            %% Implement discretization
+            fx = eye(obj.nx) + fx*dt;
+            fu = fu*dt;
         end
 
     end

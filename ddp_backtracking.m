@@ -41,8 +41,12 @@ function sol = ddp_backtracking(x0, x_goal, t_f, N, dyn, cost, num_iter, options
         dyn
         cost
         num_iter
-        options.alpha = 1.0
         options.show_online = true
+        options.cost_tolerance = 1e-5
+        options.backtracking = true
+        options.bt_it = 10
+        options.bt_decay = 0.5
+        options.reg = 0
     end
 
     %% Init
@@ -76,6 +80,9 @@ function sol = ddp_backtracking(x0, x_goal, t_f, N, dyn, cost, num_iter, options
     Q_xu = zeros(dyn.nx, dyn.nact, N);
     Q_ux = zeros(dyn.nact, dyn.nx, N);
 
+    % Alphas value
+    alphas = options.bt_decay.^(0:(options.bt_it - 1));
+
     %% Nominal Trajectory
     % Random (for now)
     u = (-1.0 + 2*rand(dyn.nact, N));
@@ -96,35 +103,65 @@ function sol = ddp_backtracking(x0, x_goal, t_f, N, dyn, cost, num_iter, options
     for i = 1:num_iter
         disp("Iteration " + num2str(i));
 
-        % Compute total cost
-        J(i) = cost.phi(x(:, N), x_goal);
-        for k = 1:N-1
-            J(i) = J(i) + cost.L(x(:, k), u(:, k), dt);
-        end
-
-        %% Show Total Cost
-        if options.show_online && i > 1
-            figure(f1)
-            plot(J(1:i), 'LineWidth', 2.0, 'Marker', 'o')
-            grid on
-            xlabel("N° of iterations")
-            ylabel("Total Cost J")
-            xlim([1, i])
-            drawnow
-        end
-
         %% Backwards pass
-        [V_x, V_xx, Q_x, Q_u, Q_xx, Q_uu, Q_xu, Q_ux] = backward_pass(dyn, cost, x_goal, t, x, u, x_dot, N, dt);
+        [V_x, V_xx, Q_x, Q_u, Q_xx, Q_uu, Q_xu, Q_ux] = backward_pass(dyn, cost, x_goal, t, x, u, x_dot, N, dt, options.reg);
 
         %% Forward Pass
-        % Backtracking
-        [x, u, x_dot] = forward_pass(dyn, t, x, u, Q_u, Q_ux, Q_uu, N, dt, options.alpha);
+        if options.backtracking && i > 1
+            % Backtracking
+            for j = 1:options.bt_it
+                % Forward Pass
+                [x_star, u_star, x_dot_star] = forward_pass(dyn, t, x, u, Q_u, Q_ux, Q_uu, N, dt, alphas(j));
+    
+                % Compute the new cost
+                J_try = compute_totalCost(cost, x_star, u_star, x_goal, N, dt);
+    
+                % Check
+                if(J_try < J(i - 1))
+                    break;
+                end
+            end
+
+            % Update
+            x = x_star;
+            u = u_star;
+            x_dot = x_dot_star;
+            J(i) = J_try;
+        else
+            %% Forward Pass
+            [x, u, x_dot] = forward_pass(dyn, t, x, u, Q_u, Q_ux, Q_uu, N, dt, alphas(1));
+
+            %% Compute total cost
+            J(i) = compute_totalCost(cost, x, u, x_goal, N, dt);
+        end
 
         %% Stopping Conditions
+        % Error for NaN
         if(anynan(x) || anynan(u))
             disp("Error: NaN in the solutions. Stopping...");
             % Assemble solution
             sol = assemble_solution(x, u, t, J, Q_u, Q_uu, Q_ux, 1);
+        end
+
+        %% Show Total Cost
+        if i > 1
+            if options.show_online
+                figure(f1)
+                plot(J(1:i), 'LineWidth', 2.0, 'Marker', 'o')
+                grid on
+                xlabel("N° of iterations")
+                ylabel("Total Cost J")
+                xlim([1, i])
+                drawnow
+            end
+    
+            % Cost
+            if(abs(J(i) - J(i - 1)) < options.cost_tolerance)
+                disp("Stop DDP since the difference of the costs are lower then the tolerance.");
+                % Assemble solution
+                sol = assemble_solution(x, u, t, J, Q_u, Q_uu, Q_ux, 0);
+                break;
+            end
         end
     end  
 
@@ -136,7 +173,15 @@ function sol = ddp_backtracking(x0, x_goal, t_f, N, dyn, cost, num_iter, options
 end
 
 %% Utilities
-function [V_x, V_xx, Q_x, Q_u, Q_xx, Q_uu, Q_xu, Q_ux] = backward_pass(dyn, cost, x_goal, t, x, u, x_dot, N, dt)
+function J = compute_totalCost(cost, x, u, x_goal, N, dt)
+    J = 0;
+    for k = 1:N-1
+        J = J + cost.L(x(:, k), u(:, k), dt);
+    end
+    J = J + cost.phi(x(:, N), x_goal);
+end
+
+function [V_x, V_xx, Q_x, Q_u, Q_xx, Q_uu, Q_xu, Q_ux] = backward_pass(dyn, cost, x_goal, t, x, u, x_dot, N, dt, reg)
     % Init
     % Value function and derivatives
     % V = zeros(1, N);
@@ -159,7 +204,7 @@ function [V_x, V_xx, Q_x, Q_u, Q_xx, Q_uu, Q_xu, Q_ux] = backward_pass(dyn, cost
     % Perform backwards pass
     for k = N-1:-1:1
         % Compute Analytical Derivatives
-        [fx, fu] = dyn.analytical_derivatives(t(k), x(:, k), x_dot(:, k), u(:, k));
+        [fx, fu] = dyn.analytical_derivatives(t(k), x(:, k), x_dot(:, k), u(:, k), dt);
 
         Q_x(:, k) = cost.L_x(x(:, k), u(:, k), dt) + fx.' * V_x(:, k + 1);
         Q_u(:, k) = cost.L_u(x(:, k), u(:, k), dt) + fu.' * V_x(:, k + 1);
@@ -169,6 +214,10 @@ function [V_x, V_xx, Q_x, Q_u, Q_xx, Q_uu, Q_xu, Q_ux] = backward_pass(dyn, cost
         Q_ux(:, :, k) = cost.L_ux(x(:, k), u(:, k), dt) + fu.' * V_xx(:, :, k + 1) * fx;
 
         % Compute the value function derivatives
+        % Regularization
+        Q_uu(:, :, k) = Q_uu(:, :, k) + reg*eye(size(Q_uu(:, :, k)));
+    
+        % Update Gradients
         V_x(:, k) = Q_x(:, k) - Q_xu(:, :, k) * (Q_uu(:, :, k) \ Q_u(:, k));
         V_xx(:, :, k) = Q_xx(:, :, k) - Q_xu(:, :, k) * (Q_uu(:, :, k) \ Q_ux(:, :, k));
     end
