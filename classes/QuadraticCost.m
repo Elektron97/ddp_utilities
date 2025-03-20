@@ -4,14 +4,16 @@
 % abstract Cost class
 classdef QuadraticCost < Cost
     properties
-        Q_f; % terminal cost weights
-        R; % control cost weights
+        Q_f;    % Terminal Cost Weights
+        Q;      % State Cost Weights
+        R;      % Control Cost Weights
     end
     
     methods
         % Constructor
-        function obj = QuadraticCost(Q_f, R)
+        function obj = QuadraticCost(Q_f, Q, R)
             obj.Q_f = Q_f;
+            obj.Q = Q;
             obj.R = R;
         end
         
@@ -37,27 +39,27 @@ classdef QuadraticCost < Cost
         end
         
         % Running cost
-        function L = L(obj, ~, u, dt)
-            L = (0.5 .* u.' * obj.R * u) .* dt;
+        function L = L(obj, x, u, dt)
+            L = (0.5 .* x.' * obj.Q * x) .* dt + (0.5 .* u.' * obj.R * u) .* dt;
         end
         
         % Running cost derivatives
-        function L_x = L_x(~, x, ~, ~)
-            L_x = zeros(numel(x), 1);
+        function L_x = L_x(obj, x, u, dt)
+            L_x = obj.Q*x*dt;
         end
-        function L_u = L_u(obj, ~, u, dt)
+        function L_u = L_u(obj, x, u, dt)
             L_u = (obj.R * u) .* dt;
         end
-        function L_xx = L_xx(~, x, ~, ~)
-            L_xx = zeros(numel(x));
+        function L_xx = L_xx(obj, x, u, dt)
+            L_xx = obj.Q*dt;
         end
-        function L_uu = L_uu(obj, ~, ~, dt)
+        function L_uu = L_uu(obj, x, u, dt)
             L_uu = obj.R .* dt;
         end
-        function L_xu = L_xu(~, x, u, ~)
+        function L_xu = L_xu(obj, x, u, dt)
             L_xu = zeros(numel(x), numel(u));
         end
-        function L_ux = L_ux(~, x, u, ~)
+        function L_ux = L_ux(obj, x, u, dt)
             L_ux = zeros(numel(u), numel(x));
         end
     end
