@@ -46,7 +46,7 @@ function sol = ddp_backtracking(x0, x_goal, t_f, N, dyn, cost, num_iter, options
         options.backtracking = true
         options.bt_it = 10
         options.bt_decay = 0.5
-        options.reg = 0
+        options.reg = 1e-6
     end
 
     %% Init
