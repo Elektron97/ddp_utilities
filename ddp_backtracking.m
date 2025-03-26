@@ -47,6 +47,7 @@ function sol = ddp_backtracking(x0, x_goal, t_f, N, dyn, cost, num_iter, options
         options.bt_it = 10
         options.bt_decay = 0.5
         options.reg = 1e-6
+        options.u0 = (-1.0 + 2*rand(dyn.nact, N))
     end
 
     %% Init
@@ -85,7 +86,7 @@ function sol = ddp_backtracking(x0, x_goal, t_f, N, dyn, cost, num_iter, options
 
     %% Nominal Trajectory
     % Random (for now)
-    u = (-1.0 + 2*rand(dyn.nact, N));
+    u = options.u0;
 
     % Propagation with the Dynamics
     for k = 1:N-1
@@ -234,8 +235,8 @@ function [x_star, u_star, x_dot_star] = forward_pass(dyn, t, x, u, Q_u, Q_ux, Q_
     for k = 1:N-1
         error = x_star(:, k) - x(:, k);
         
-        % WrapToP Correction
-        error(1:2) = wrapToPi(error(1:2));
+        % % WrapToP Correction
+        % error(1:2) = wrapToPi(error(1:2));
 
         % Update control
         u_star(:, k) = u(:, k) - (Q_uu(:, :, k)) \ (alpha.*Q_u(:, k) + Q_ux(:, :, k)*error);
