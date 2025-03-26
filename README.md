@@ -1,4 +1,4 @@
-# Differential Dynamic Programming Simulation Using MATLAB
+# Differential Dynamic Programming Simulation Using MATLAB 
 
 This code is a MATLAB implementation of the **Differential Dynamic Programming** (DDP) algorithm, implemented in **MATLAB**, and utilized to control a simulated inverted pendulum and a simulated cart-pole system. This project is for the AE4803-ROB class, *Robotic Systems and Autonomy*, taught by Prof. Evangelos Theodorou at the Georgia Institute of Technology during the spring 2020 semester. 
 
