@@ -142,6 +142,7 @@ function sol = ddp_backtracking(x0, x_goal, t_f, N, dyn, cost, num_iter, options
             disp("Error: NaN in the solutions. Stopping...");
             % Assemble solution
             sol = assemble_solution(x, u, t, J, Q_u, Q_uu, Q_ux, 1);
+            break;
         end
 
         %% Show Total Cost
