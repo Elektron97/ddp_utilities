@@ -77,32 +77,35 @@ classdef GVS_Dynamics < Dynamics
             % Differentiation w.r.t. x
             for i = 1:obj.nx
                 % Perturbating x
-                x_tilde1 = x - eps*x_bases(:, i);
-                x_tilde2 = x + eps*x_bases(:, i);
+                x_tilde1 = x - options.eps*x_bases(:, i);
+                x_tilde2 = x + options.eps*x_bases(:, i);
 
                 % Compute Analytical Derivatives
                 [fx1, ~] = obj.analytical_derivatives(0, x_tilde1, obj.dynamics(0, x_tilde1, u), u, dt);
                 [fx2, ~] = obj.analytical_derivatives(0, x_tilde2, obj.dynamics(0, x_tilde2, u), u, dt);
 
                 % Finite Difference
-                fxx(:, :, i) = 0.5*(fx2 - fx1)/eps;
+                fxx(:, :, i) = 0.5*(fx2 - fx1)/options.eps;
             end
 
             % Differentiation w.r.t. u
             for i = 1:obj.nact
                 % Perturbating x
-                u_tilde1 = u - eps*u_bases(:, i);
-                u_tilde2 = u + eps*u_bases(:, i);
+                u_tilde1 = u - options.eps*u_bases(:, i);
+                u_tilde2 = u + options.eps*u_bases(:, i);
 
                 % Compute Analytical Derivatives
                 [fx1, fu1] = obj.analytical_derivatives(0, x, obj.dynamics(0, x, u_tilde1), u_tilde1, dt);
                 [fx2, fu2] = obj.analytical_derivatives(0, x, obj.dynamics(0, x, u_tilde2), u_tilde2, dt);
 
                 % Finite Difference
-                fxu(:, :, i) = 0.5*(fx2 - fx1)/eps;
-                fuu(:, :, i) = 0.5*(fu2 - fu1)/eps;
+                fxu(:, :, i) = 0.5*(fx2 - fx1)/options.eps;
+                fuu(:, :, i) = 0.5*(fu2 - fu1)/options.eps;
             end
 
+            %% Symmetrize
+            fxx = 0.5*(fxx + permute(fxx, [1 3 2]));
+            fuu = 0.5*(fuu + permute(fuu, [1 3 2]));
         end
 
     end
