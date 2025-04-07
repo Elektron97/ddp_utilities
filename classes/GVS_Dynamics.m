@@ -29,7 +29,7 @@ classdef GVS_Dynamics < Dynamics
         end
 
         %% Analytical Derivatives (First Order)
-        function [fx, fu] = analytical_derivatives(obj, t, x, xdot, u, dt)
+        function [fx, fu] = analytical_derivatives(obj, t, x, xdot, u)
             q    = x(1:obj.ndof);
             qd   = x(obj.ndof +1:2*obj.ndof);
             qdd  = xdot(obj.ndof +1:2*obj.ndof);
@@ -51,9 +51,55 @@ classdef GVS_Dynamics < Dynamics
             fu = [zeros(obj.ndof, obj.nact); M\B];
 
             %% Implement discretization
-            fx = eye(obj.nx) + fx*dt;
-            fu = fu*dt;
+            % fx = eye(obj.nx) + fx*dt;
+            % fu = fu*dt;
         end
+
+        %% Apply Discretization
+        function [fx, fu] = discretized_gradients(obj, t, x, xdot, u, h, options)
+            arguments
+                obj
+                t
+                x
+                xdot
+                u
+                h
+                options.method = "ode1"
+            end
+
+            %% Compute Analytical Derivatives (Continous System)
+            [fx_continous, fu_continous] = obj.analytical_derivatives(t, x, xdot, u);
+
+            %% Gradients of the Discretized System
+            switch(options.method)
+                case "ode1"
+                    fx = eye(obj.nx) + fx_continous*h;
+                    fu = fu_continous*h;
+                case "ode4"
+                    k0 = xdot;  % xdot = f(x, u) | Continous
+                    k1 = obj.dynamics(t + h/2, x + h*k0/2, u);
+                    k2 = obj.dynamics(t + h/2, x + h*k1/2, u);
+                    k3 = obj.dynamics(t + h, x + h*k2, u);
+
+                    % Compute Analytical Derivatives of i_th k
+                    % Init
+                    k0x = fx_continous;
+                    k0u = fu_continous;
+
+                    % k-ith
+                    [k1x, k1u] = obj.analytical_derivatives(t + h/2, x + h*k0/2, k1, u);
+                    [k2x, k2u] = obj.analytical_derivatives(t + h/2, x + h*k1/2, k2, u);
+                    [k3x, k3u] = obj.analytical_derivatives(t + h, x + h*k2, k3, u);
+
+                    % Rewrite Gradients
+                    fx = eye(obj.nx) + (h/6)*(k0x + 2*k1x + 2*k2x + k3x);
+                    fu = (h/6)*(k0u + 2*k1u + 2*k2u + k3u);
+                otherwise
+                    error("Unsupported Diiscretization Method.");
+            end
+
+        end
+
 
         %% Numerical Hessian
         function [fxx, fxu, fuu] = numerical_hessian(obj, x, u, dt, options)
