@@ -100,7 +100,6 @@ classdef GVS_Dynamics < Dynamics
 
         end
 
-
         %% Numerical Hessian
         function [fxx, fxu, fuu] = numerical_hessian(obj, x, u, dt, options)
             arguments
@@ -127,8 +126,8 @@ classdef GVS_Dynamics < Dynamics
                 x_tilde2 = x + options.eps*x_bases(:, i);
 
                 % Compute Analytical Derivatives
-                [fx1, ~] = obj.analytical_derivatives(0, x_tilde1, obj.dynamics(0, x_tilde1, u), u, dt);
-                [fx2, ~] = obj.analytical_derivatives(0, x_tilde2, obj.dynamics(0, x_tilde2, u), u, dt);
+                [fx1, ~] = obj.discretized_gradients(0, x_tilde1, obj.dynamics(0, x_tilde1, u), u, dt);
+                [fx2, ~] = obj.discretized_gradients(0, x_tilde2, obj.dynamics(0, x_tilde2, u), u, dt);
 
                 % Finite Difference
                 fxx(:, :, i) = 0.5*(fx2 - fx1)/options.eps;
@@ -141,8 +140,8 @@ classdef GVS_Dynamics < Dynamics
                 u_tilde2 = u + options.eps*u_bases(:, i);
 
                 % Compute Analytical Derivatives
-                [fx1, fu1] = obj.analytical_derivatives(0, x, obj.dynamics(0, x, u_tilde1), u_tilde1, dt);
-                [fx2, fu2] = obj.analytical_derivatives(0, x, obj.dynamics(0, x, u_tilde2), u_tilde2, dt);
+                [fx1, fu1] = obj.discretized_gradients(0, x, obj.dynamics(0, x, u_tilde1), u_tilde1, dt);
+                [fx2, fu2] = obj.discretized_gradients(0, x, obj.dynamics(0, x, u_tilde2), u_tilde2, dt);
 
                 % Finite Difference
                 fxu(:, :, i) = 0.5*(fx2 - fx1)/options.eps;
