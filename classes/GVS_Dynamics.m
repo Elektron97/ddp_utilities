@@ -91,6 +91,11 @@ classdef GVS_Dynamics < Dynamics
                     [k2x, k2u] = obj.analytical_derivatives(t + h/2, x + h*k1/2, k2, u);
                     [k3x, k3u] = obj.analytical_derivatives(t + h, x + h*k2, k3, u);
 
+                    % Chain Rule Correction
+                    k1x = (h/2)*k1x*k0x;
+                    k2x = (h/2)*k2x*k1x;
+                    k3x = h*k3x*k2x;
+
                     % Rewrite Gradients
                     fx = eye(obj.nx) + (h/6)*(k0x + 2*k1x + 2*k2x + k3x);
                     fu = (h/6)*(k0u + 2*k1u + 2*k2u + k3u);
