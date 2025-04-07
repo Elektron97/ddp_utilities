@@ -28,6 +28,37 @@ classdef GVS_Dynamics < Dynamics
             x_dot = [x(obj.ndof + 1:end); y(1:obj.ndof)];
         end
 
+        %% Discretization of Dynamics
+        function x_new = discretize_dynamics(obj, t, x, u, h, options)
+            arguments
+                obj
+                t
+                x
+                u
+                h
+                options.method = "ode1"
+            end
+
+            %% Compute Continous Dynamics
+            x_dot = obj.dynamics(t, x, u);
+
+            %% Discretization
+            switch(options.method)
+                case "ode1"
+                    x_new = x + h*x_dot;
+                case "ode4"
+                    k0 = x_dot;
+                    k1 = obj.dynamics(t + 0.5*h, x + 0.5*h*k0, u);
+                    k2 = obj.dynamics(t + 0.5*h, x + 0.5*h*k1, u);
+                    k3 = obj.dynamics(t + h, x + h*k2, u);
+                    
+                    % Update State
+                    x_new = x + (h/6)*(k0 + 2*k1 + 2*k2 + k3);
+                otherwise
+                    error("Unsupported Integration Method.");
+            end
+        end
+
         %% Analytical Derivatives (First Order)
         function [fx, fu] = analytical_derivatives(obj, t, x, xdot, u)
             q    = x(1:obj.ndof);
@@ -91,10 +122,11 @@ classdef GVS_Dynamics < Dynamics
                     [k2x, k2u] = obj.analytical_derivatives(t + h/2, x + h*k1/2, k2, u);
                     [k3x, k3u] = obj.analytical_derivatives(t + h, x + h*k2, k3, u);
 
-                    % Chain Rule Correction
-                    k1x = (h/2)*k1x*k0x;
-                    k2x = (h/2)*k2x*k1x;
-                    k3x = h*k3x*k2x;
+                    % Chain Rule Correction | diff(x_k + 0.5*h*k0) = 
+                    % = eye() + 0.5*h*k0x.
+                    k1x = k1x*(eye(obj.nx) + (h/2)*k0x);
+                    k2x = k2x*(eye(obj.nx) + (h/2)*k1x);
+                    k3x = k3x*(eye(obj.nx) + h*k2x);
 
                     % Rewrite Gradients
                     fx = eye(obj.nx) + (h/6)*(k0x + 2*k1x + 2*k2x + k3x);
