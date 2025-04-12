@@ -54,6 +54,14 @@ classdef GVS_Dynamics < Dynamics
                     
                     % Update State
                     x_new = x + (h/6)*(k0 + 2*k1 + 2*k2 + k3);
+                case "ode45"
+                    ODEFUN = @(t, xk) obj.dynamics(t, xk, u);
+                    [~, YOUT] = ode45(ODEFUN, [t, t + h], x);
+                    x_new = YOUT(end, :)';
+                case "ode15s"
+                    ODEFUN = @(t, xk) obj.dynamics(t, xk, u);
+                    [~, YOUT] = ode15s(ODEFUN, [t, t + h], x);
+                    x_new = YOUT(end, :)';
                 otherwise
                     error("Unsupported Integration Method.");
             end
