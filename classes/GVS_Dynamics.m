@@ -37,6 +37,7 @@ classdef GVS_Dynamics < Dynamics
                 u
                 h
                 options.method = "ode1"
+                options.specify_jacobian = false
             end
 
             %% Compute Continous Dynamics
@@ -60,7 +61,15 @@ classdef GVS_Dynamics < Dynamics
                     x_new = YOUT(end, :)';
                 case "ode15s"
                     ODEFUN = @(t, xk) obj.dynamics(t, xk, u);
-                    [~, YOUT] = ode15s(ODEFUN, [t, t + h], x);
+
+                    % Increase Speed
+                    if options.specify_jacobian
+                        odeopts = odeset('Jacobian', @(t, xk) obj.analytical_derivatives(t, xk, sim_obj.dynamics(t, xk, u), u));
+                        [~, YOUT] = ode15s(ODEFUN, [t, t + h], x, odeopts);
+                    else
+                        [~, YOUT] = ode15s(ODEFUN, [t, t + h], x);
+                    end
+
                     x_new = YOUT(end, :)';
                 otherwise
                     error("Unsupported Integration Method.");
