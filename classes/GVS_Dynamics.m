@@ -64,7 +64,7 @@ classdef GVS_Dynamics < Dynamics
 
                     % Increase Speed
                     if options.specify_jacobian
-                        odeopts = odeset('Jacobian', @(t, xk) obj.analytical_derivatives(t, xk, sim_obj.dynamics(t, xk, u), u));
+                        odeopts = odeset('Jacobian', @(t, xk) obj.analytical_derivatives(t, xk, obj.dynamics(t, xk, u), u));
                         [~, YOUT] = ode15s(ODEFUN, [t, t + h], x, odeopts);
                     else
                         [~, YOUT] = ode15s(ODEFUN, [t, t + h], x);
