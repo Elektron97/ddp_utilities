@@ -97,10 +97,6 @@ classdef GVS_Dynamics < Dynamics
             %% Gradients
             fx = [zeros(obj.ndof, obj.ndof), eye(obj.ndof); dFDdq, dFDdqd];
             fu = [zeros(obj.ndof, obj.nact); M\B];
-
-            %% Implement discretization
-            % fx = eye(obj.nx) + fx*dt;
-            % fu = fu*dt;
         end
 
         %% Apply Discretization
