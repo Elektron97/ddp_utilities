@@ -159,8 +159,17 @@ classdef GVS_Dynamics < Dynamics
                     % Rewrite Gradients
                     fx = eye(obj.nx) + (h/6)*(k0x + 2*k1x + 2*k2x + k3x);
                     fu = (h/6)*(k0u + 2*k1u + 2*k2u + k3u);
+
+                %% Implicit Time Integration
+                case "ode1i"
+                    % Compute Analytical Jacobian
+                    x_new = obj.discretize_dynamics(t, x, u, h, "method", options.method);
+                    [~, gx_next, gx, gu] = computeResidualAndJacobian(t, x_new, x, u, h, obj);
+                    fx = gx_next\gx;
+                    fu = gx_next\gu;
+
                 otherwise
-                    error("Unsupported Diiscretization Method.");
+                    error("Unsupported Discretization Method.");
             end
 
         end
@@ -221,7 +230,7 @@ classdef GVS_Dynamics < Dynamics
     end
 end
 
-function [F, J] = computeResidualAndJacobian(t, x_next, x_current, u, h, dyn_obj)
+function [F, Jx_next, Jx, Ju] = computeResidualAndJacobian(t, x_next, x_current, u, h, dyn_obj)
     % obj is the object containing your dynamics and derivatives methods
     
     % 1. Calculate the residual (your ODEFUN)
@@ -231,5 +240,8 @@ function [F, J] = computeResidualAndJacobian(t, x_next, x_current, u, h, dyn_obj
     % 2. Calculate the Jacobian of the residual
     n = numel(x_current); % Get the size of the state vector
     I = eye(n);
-    J = I - h * dyn_obj.analytical_derivatives(t, x_next, x_next_dot, u);
+    [fx_next, fu_next] = dyn_obj.analytical_derivatives(t, x_next, x_next_dot, u);
+    Jx_next = I - h * fx_next;
+    Jx = - I;
+    Ju = - h * fu_next;
 end
