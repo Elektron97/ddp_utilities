@@ -50,7 +50,7 @@ classdef GVS_Dynamics < Dynamics
                 case "ode4"
                     % Compute Continous Dynamics
                     x_dot = obj.dynamics(t, x, u);
-                    
+
                     k0 = x_dot;
                     k1 = obj.dynamics(t + 0.5*h, x + 0.5*h*k0, u);
                     k2 = obj.dynamics(t + 0.5*h, x + 0.5*h*k1, u);
@@ -124,15 +124,18 @@ classdef GVS_Dynamics < Dynamics
                 options.method = "ode1"
             end
 
-            %% Compute Analytical Derivatives (Continous System)
-            [fx_continous, fu_continous] = obj.analytical_derivatives(t, x, xdot, u);
-
             %% Gradients of the Discretized System
             switch(options.method)
                 case "ode1"
+                    % Compute Analytical Derivatives (Continous System)
+                    [fx_continous, fu_continous] = obj.analytical_derivatives(t, x, xdot, u);
+
                     fx = eye(obj.nx) + fx_continous*h;
                     fu = fu_continous*h;
                 case "ode4"
+                    % Compute Analytical Derivatives (Continous System)
+                    [fx_continous, fu_continous] = obj.analytical_derivatives(t, x, xdot, u);
+
                     k0 = xdot;  % xdot = f(x, u) | Continous
                     k1 = obj.dynamics(t + 0.5*h, x + 0.5*h*k0, u);
                     k2 = obj.dynamics(t + 0.5*h, x + 0.5*h*k1, u);
