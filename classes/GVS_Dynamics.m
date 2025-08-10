@@ -73,8 +73,16 @@ classdef GVS_Dynamics < Dynamics
                     x_new = YOUT(end, :)';
                 
                 %% Implicit Time Integration
-                % case "implicit_euler"
+                case "implicit_euler"
+                    ODEFUN = @(x_next) computeResidualAndJacobian(t, x_next, x, u, h, obj);
 
+                    % % Create Function handle of the Residual
+                    % ODEFUN = @(x_next) x_next - x - h*obj.dynamics(t, x_next, u);
+                    % options = optimoptions('fsolve','Display','none');
+
+                    % fsolve: Initial Guess x_k (continuity)
+                    options = optimoptions('fsolve','Display','none', 'SpecifyObjectiveGradient', true);
+                    x_new = fsolve(ODEFUN, x, options);
 
                 otherwise
                     error("Unsupported Integration Method.");
@@ -214,4 +222,17 @@ classdef GVS_Dynamics < Dynamics
         end
 
     end
+end
+
+function [F, J] = computeResidualAndJacobian(t, x_next, x_current, u, h, dyn_obj)
+    % obj is the object containing your dynamics and derivatives methods
+    
+    % 1. Calculate the residual (your ODEFUN)
+    x_next_dot = dyn_obj.dynamics(t, x_next, u);
+    F = x_next - x_current - h * x_next_dot;
+
+    % 2. Calculate the Jacobian of the residual
+    n = numel(x_current); % Get the size of the state vector
+    I = eye(n);
+    J = I - h * dyn_obj.analytical_derivatives(t, x_next, x_next_dot, u);
 end
