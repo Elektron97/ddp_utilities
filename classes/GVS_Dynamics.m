@@ -29,7 +29,7 @@ classdef GVS_Dynamics < Dynamics
         end
 
         %% Discretization of Dynamics
-        function x_new = discretize_dynamics(obj, t, x, u, h, options)
+        function [x_new, x_dot] = discretize_dynamics(obj, t, x, u, h, options)
             arguments
                 obj
                 t
@@ -71,6 +71,11 @@ classdef GVS_Dynamics < Dynamics
                     end
 
                     x_new = YOUT(end, :)';
+                
+                %% Implicit Time Integration
+                % case "implicit_euler"
+
+
                 otherwise
                     error("Unsupported Integration Method.");
             end
