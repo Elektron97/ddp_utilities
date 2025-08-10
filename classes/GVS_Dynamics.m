@@ -74,11 +74,8 @@ classdef GVS_Dynamics < Dynamics
                 
                 %% Implicit Time Integration
                 case "ode1i"
+                    % Create Function handle of the Residual
                     ODEFUN = @(x_next) computeResidualAndJacobian(t, x_next, x, u, h, obj);
-
-                    % % Create Function handle of the Residual
-                    % ODEFUN = @(x_next) x_next - x - h*obj.dynamics(t, x_next, u);
-                    % options = optimoptions('fsolve','Display','none');
 
                     % fsolve: Initial Guess x_k (continuity)
                     options = optimoptions('fsolve','Display','none', 'SpecifyObjectiveGradient', true);
