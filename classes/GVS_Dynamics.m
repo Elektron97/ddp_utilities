@@ -73,7 +73,7 @@ classdef GVS_Dynamics < Dynamics
                     x_new = YOUT(end, :)';
                 
                 %% Implicit Time Integration
-                case "implicit_euler"
+                case "ode1i"
                     ODEFUN = @(x_next) computeResidualAndJacobian(t, x_next, x, u, h, obj);
 
                     % % Create Function handle of the Residual
