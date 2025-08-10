@@ -81,7 +81,8 @@ classdef GVS_Dynamics < Dynamics
                     ODEFUN = @(x_next) computeResidualAndJacobian(t, x_next, x, u, h, obj);
 
                     % fsolve: Initial Guess x_k (continuity)
-                    options = optimoptions('fsolve','Display','none', 'SpecifyObjectiveGradient', true);
+                    options = optimoptions('fsolve', 'Algorithm', 'trust-region-dogleg', ...
+                                            'Display', 'none', 'SpecifyObjectiveGradient', true);
                     x_new = fsolve(ODEFUN, x, options);
 
                 otherwise
