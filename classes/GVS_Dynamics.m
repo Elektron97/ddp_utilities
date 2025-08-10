@@ -29,7 +29,7 @@ classdef GVS_Dynamics < Dynamics
         end
 
         %% Discretization of Dynamics
-        function [x_new, x_dot] = discretize_dynamics(obj, t, x, u, h, options)
+        function x_new = discretize_dynamics(obj, t, x, u, h, options)
             arguments
                 obj
                 t
@@ -40,14 +40,17 @@ classdef GVS_Dynamics < Dynamics
                 options.specify_jacobian = false
             end
 
-            %% Compute Continous Dynamics
-            x_dot = obj.dynamics(t, x, u);
-
             %% Discretization
             switch(options.method)
                 case "ode1"
+                    % Compute Continous Dynamics
+                    x_dot = obj.dynamics(t, x, u);
+
                     x_new = x + h*x_dot;
                 case "ode4"
+                    % Compute Continous Dynamics
+                    x_dot = obj.dynamics(t, x, u);
+                    
                     k0 = x_dot;
                     k1 = obj.dynamics(t + 0.5*h, x + 0.5*h*k0, u);
                     k2 = obj.dynamics(t + 0.5*h, x + 0.5*h*k1, u);
