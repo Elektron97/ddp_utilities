@@ -78,12 +78,21 @@ classdef GVS_Dynamics < Dynamics
                 %% Implicit Time Integration
                 case "ode1i"
                     % Create Function handle of the Residual
-                    ODEFUN = @(x_next) computeResidualAndJacobian(t, x_next, x, u, h, obj);
+                    ODEFUN = @(x_next) computeResidualAndJacobian(t, x_next, x, u, h, obj, "method", options.method);
 
                     % fsolve: Initial Guess x_k (continuity)
-                    options = optimoptions('fsolve', 'Algorithm', 'trust-region-dogleg', ...
+                    fsolve_opt = optimoptions('fsolve', 'Algorithm', 'trust-region-dogleg', ...
                                             'Display', 'none', 'SpecifyObjectiveGradient', true);
-                    x_new = fsolve(ODEFUN, x, options);
+                    x_new = fsolve(ODEFUN, x, fsolve_opt);
+
+                case "trapz"
+                    % Create Function handle of the Residual
+                    ODEFUN = @(x_next) computeResidualAndJacobian(t, x_next, x, u, h, obj, "method", options.method);
+
+                    % fsolve: Initial Guess x_k (continuity)
+                    fsolve_opt = optimoptions('fsolve', 'Algorithm', 'trust-region-dogleg', ...
+                                            'Display', 'none', 'SpecifyObjectiveGradient', true);
+                    x_new = fsolve(ODEFUN, x, fsolve_opt);
 
                 otherwise
                     error("Unsupported Integration Method.");
@@ -172,7 +181,14 @@ classdef GVS_Dynamics < Dynamics
                 case "ode1i"
                     % Compute Analytical Jacobian
                     x_new = obj.discretize_dynamics(t, x, u, h, "method", options.method);
-                    [~, gx_next, gx, gu] = computeResidualAndJacobian(t, x_new, x, u, h, obj);
+                    [~, gx_next, gx, gu] = computeResidualAndJacobian(t, x_new, x, u, h, obj, "method", options.method);
+                    fx = gx_next\gx;
+                    fu = gx_next\gu;
+                
+                case "trapz"
+                    % Compute Analytical Jacobian
+                    x_new = obj.discretize_dynamics(t, x, u, h, "method", options.method);
+                    [~, gx_next, gx, gu] = computeResidualAndJacobian(t, x_new, x, u, h, obj, "method", options.method);
                     fx = gx_next\gx;
                     fu = gx_next\gu;
 
@@ -238,18 +254,48 @@ classdef GVS_Dynamics < Dynamics
     end
 end
 
-function [F, Jx_next, Jx, Ju] = computeResidualAndJacobian(t, x_next, x_current, u, h, dyn_obj)
-    % obj is the object containing your dynamics and derivatives methods
-    
-    % 1. Calculate the residual (your ODEFUN)
-    x_next_dot = dyn_obj.dynamics(t, x_next, u);
-    F = x_next - x_current - h * x_next_dot;
+function [F, Jx_next, Jx, Ju] = computeResidualAndJacobian(t, x_next, x_current, u, h, dyn_obj, options)
+    arguments
+        t
+        x_next
+        x_current
+        u
+        h
+        dyn_obj
+        options.method = "ode1i"     % obj is the object containing your dynamics and derivatives methods
+    end
 
-    % 2. Calculate the Jacobian of the residual
-    n = numel(x_current); % Get the size of the state vector
-    I = eye(n);
+    % 1. Compute the residual
+    x_next_dot = dyn_obj.dynamics(t, x_next, u);
     [fx_next, fu_next] = dyn_obj.analytical_derivatives(t, x_next, x_next_dot, u);
-    Jx_next = I - h * fx_next;
-    Jx = - I;
-    Ju = - h * fu_next;
+
+    switch(options.method)
+        case "ode1i"
+            F = x_next - x_current - h * x_next_dot;
+
+            % 2. Compute the Jacobian of the residual
+            n = numel(x_current); % Get the size of the state vector
+            I = eye(n);
+            
+            Jx_next = I - h * fx_next;
+            Jx = - I;
+            Ju = - h * fu_next;
+
+        case "trapz"
+            x_current_dot = dyn_obj.dynamics(t, x_current, u);
+            [fx_current, fu_current] = dyn_obj.analytical_derivatives(t, x_current, x_current_dot, u);
+
+            F = x_next - x_current - 0.5*h*(x_next_dot + x_current_dot);
+
+            % 2. Compute the Jacobian of the residual
+            n = numel(x_current); % Get the size of the state vector
+            I = eye(n);
+            
+            Jx_next = I - 0.5*h*fx_next;
+            Jx = - I - 0.5*h*fx_current;
+            Ju = - 0.5*h*(fu_current + fu_next);
+
+        otherwise
+            error("Unsupported Implicit Integration Method.")
+    end
 end
