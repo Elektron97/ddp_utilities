@@ -113,12 +113,11 @@ classdef GVS_Dynamics < Dynamics
         end
 
         %% Apply Discretization
-        function [fx, fu] = discretized_gradients(obj, t, x, xdot, u, h, options)
+        function [fx, fu] = discretized_gradients(obj, t, x, u, h, options)
             arguments
                 obj
                 t
                 x
-                xdot
                 u
                 h
                 options.method = "ode1"
@@ -128,12 +127,14 @@ classdef GVS_Dynamics < Dynamics
             switch(options.method)
                 case "ode1"
                     % Compute Analytical Derivatives (Continous System)
+                    xdot = obj.dynamics(t, x, u);
                     [fx_continous, fu_continous] = obj.analytical_derivatives(t, x, xdot, u);
 
                     fx = eye(obj.nx) + fx_continous*h;
                     fu = fu_continous*h;
                 case "ode4"
                     % Compute Analytical Derivatives (Continous System)
+                    xdot = obj.dynamics(t, x, u);
                     [fx_continous, fu_continous] = obj.analytical_derivatives(t, x, xdot, u);
 
                     k0 = xdot;  % xdot = f(x, u) | Continous
