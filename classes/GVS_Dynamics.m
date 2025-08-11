@@ -182,15 +182,15 @@ classdef GVS_Dynamics < Dynamics
                     % Compute Analytical Jacobian
                     x_new = obj.discretize_dynamics(t, x, u, h, "method", options.method);
                     [~, gx_next, gx, gu] = computeResidualAndJacobian(t, x_new, x, u, h, obj, "method", options.method);
-                    fx = gx_next\gx;
-                    fu = gx_next\gu;
+                    fx = - gx_next\gx;
+                    fu = - gx_next\gu;
                 
                 case "trapz"
                     % Compute Analytical Jacobian
                     x_new = obj.discretize_dynamics(t, x, u, h, "method", options.method);
                     [~, gx_next, gx, gu] = computeResidualAndJacobian(t, x_new, x, u, h, obj, "method", options.method);
-                    fx = gx_next\gx;
-                    fu = gx_next\gu;
+                    fx = - gx_next\gx;
+                    fu = - gx_next\gu;
 
                 otherwise
                     error("Unsupported Discretization Method.");
