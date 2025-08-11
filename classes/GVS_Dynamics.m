@@ -265,37 +265,114 @@ function [F, Jx_next, Jx, Ju] = computeResidualAndJacobian(t, x_next, x_current,
         options.method = "ode1i"     % obj is the object containing your dynamics and derivatives methods
     end
 
-    % 1. Compute the residual
+    % f(x_next, u)
     x_next_dot = dyn_obj.dynamics(t, x_next, u);
-    [fx_next, fu_next] = dyn_obj.analytical_derivatives(t, x_next, x_next_dot, u);
+
+    % Compute only if fsolve requires Jacobian
+    if nargout > 1
+        [fx_next, fu_next] = dyn_obj.analytical_derivatives(t, x_next, x_next_dot, u);
+    end
 
     switch(options.method)
         case "ode1i"
+            % 1. Compute Residual
             F = x_next - x_current - h * x_next_dot;
 
-            % 2. Compute the Jacobian of the residual
-            n = numel(x_current); % Get the size of the state vector
-            I = eye(n);
-            
-            Jx_next = I - h * fx_next;
-            Jx = - I;
-            Ju = - h * fu_next;
+            if nargout > 1
+                % 2. Compute the Jacobian of the residual
+                n = numel(x_current); % Get the size of the state vector
+                I = eye(n);
+                
+                Jx_next = I - h * fx_next;
+                Jx = - I;
+                Ju = - h * fu_next;
+            end
 
         case "trapz"
+            % f(x_current, u)
             x_current_dot = dyn_obj.dynamics(t, x_current, u);
-            [fx_current, fu_current] = dyn_obj.analytical_derivatives(t, x_current, x_current_dot, u);
 
+            % 1. Compute Residual
             F = x_next - x_current - 0.5*h*(x_next_dot + x_current_dot);
 
-            % 2. Compute the Jacobian of the residual
-            n = numel(x_current); % Get the size of the state vector
-            I = eye(n);
-            
-            Jx_next = I - 0.5*h*fx_next;
-            Jx = - I - 0.5*h*fx_current;
-            Ju = - 0.5*h*(fu_current + fu_next);
+            if nargout > 1
+                [fx_current, fu_current] = dyn_obj.analytical_derivatives(t, x_current, x_current_dot, u);
+
+                % 2. Compute the Jacobian of the residual
+                n = numel(x_current); % Get the size of the state vector
+                I = eye(n);
+                
+                Jx_next = I - 0.5*h*fx_next;
+                Jx = - I - 0.5*h*fx_current;
+                Ju = - 0.5*h*(fu_current + fu_next);
+            end
 
         otherwise
             error("Unsupported Implicit Integration Method.")
     end
+end
+
+%% Newton - Raphson Method
+function [x, exitflag, output] = newton_raphson(res_and_jac_func, x0, options)
+    % NEWTON_RAPHSON Solves a system of nonlinear equations F(x) = 0.
+    %
+    %   This function finds a root of a system of nonlinear equations using the
+    %   Newton-Raphson method. It is optimized to solve the linear system
+    %   J*dx = -F at each iteration rather than computing a matrix inverse.
+    %
+    %   INPUTS:
+    %       res_and_jac_func - Function handle. Must take a vector x and return
+    %                          [F, J], where F is the residual vector F(x) and
+    %                          J is the Jacobian matrix dF/dx.
+    %       x0               - Column vector of the initial guess.
+    %       options          - (Optional) Struct with solver options:
+    %                          .Tol (1e-8)  : Tolerance for the norm of the residual.
+    %                          .MaxIter (50): Maximum number of iterations.
+    %
+    %   OUTPUTS:
+    %       x        - The solution vector (the root).
+    %       exitflag - An integer indicating the reason the algorithm terminated:
+    %                  1: Converged to the specified tolerance.
+    %                  0: Reached the maximum number of iterations without converging.
+    %       output   - A struct with details about the solution process:
+    %                  .iterations: Number of iterations performed.
+    %                  .final_norm_F: The norm of the residual at the solution.
+    
+    arguments
+        res_and_jac_func    function_handle
+        x0                  (:,1) double
+        options.Tol         (1,1) double = 1e-6
+        options.MaxIter     (1,1) double = 1400
+    end
+    
+    % Initialize variables
+    x = x0;
+    iter = 0;
+    
+    % Start the Newton-Raphson iterations
+    for iter = 1:options.MaxIter
+        % Get the residual and the Jacobian from the user-provided function
+        [F, J] = res_and_jac_func(x);
+        
+        % Check for convergence
+        norm_F = norm(F);
+        if norm_F < options.Tol
+            exitflag = 1; % Success
+            output.iterations = iter - 1;
+            output.final_norm_F = norm_F;
+            return;
+        end
+        
+        % --- Core Newton Step ---
+        % Solve the linear system J*delta_x = -F for the update step delta_x.
+        % This is far more numerically stable and computationally efficient
+        % than calculating delta_x = inv(J) * -F.        
+        % Update the solution guess
+        x = x - J \ F;
+    end
+    
+    % If the loop completes, max iterations were reached without convergence
+    exitflag = 0; % Failure
+    output.iterations = options.MaxIter;
+    output.final_norm_F = norm(F);
 end
