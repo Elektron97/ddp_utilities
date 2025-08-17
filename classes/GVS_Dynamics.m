@@ -7,6 +7,7 @@ classdef GVS_Dynamics < Dynamics
         ndof                % n. of DoFs
         nx                  % dimension of the state space
         nact
+        fsolve_opt          % Store fsolve options for Implicit Time Integration
     end
 
     methods
@@ -17,6 +18,10 @@ classdef GVS_Dynamics < Dynamics
             obj.ndof = obj.robot_linkage.ndof;
             obj.nx = 2*obj.ndof;
             obj.nact = obj.robot_linkage.nact;
+
+            % Init fsolve options
+            obj.fsolve_opt = optimoptions('fsolve', 'Algorithm', 'trust-region-dogleg', ...
+                                            'Display', 'iter', 'SpecifyObjectiveGradient', true);
         end
 
         %% Dynamics
@@ -81,18 +86,14 @@ classdef GVS_Dynamics < Dynamics
                     ODEFUN = @(x_next) computeResidualAndJacobian(t, x_next, x, u, h, obj, "method", options.method);
 
                     % fsolve: Initial Guess x_k (continuity)
-                    fsolve_opt = optimoptions('fsolve', 'Algorithm', 'trust-region-dogleg', ...
-                                            'Display', 'none', 'SpecifyObjectiveGradient', true);
-                    x_new = fsolve(ODEFUN, x, fsolve_opt);
+                    x_new = fsolve(ODEFUN, x, obj.fsolve_opt);  
 
                 case "trapz"
                     % Create Function handle of the Residual
                     ODEFUN = @(x_next) computeResidualAndJacobian(t, x_next, x, u, h, obj, "method", options.method);
 
                     % fsolve: Initial Guess x_k (continuity)
-                    fsolve_opt = optimoptions('fsolve', 'Algorithm', 'trust-region-dogleg', ...
-                                            'Display', 'none', 'SpecifyObjectiveGradient', true);
-                    x_new = fsolve(ODEFUN, x, fsolve_opt);
+                    x_new = fsolve(ODEFUN, x, obj.fsolve_opt);
 
                 otherwise
                     error("Unsupported Integration Method.");
