@@ -13,6 +13,10 @@ classdef GVS_Dynamics < Dynamics
     methods
         %% Constructor
         function obj = GVS_Dynamics(robot_linkage)
+            arguments
+                robot_linkage
+            end
+            
             % Init
             obj.robot_linkage = robot_linkage;
             obj.ndof = obj.robot_linkage.ndof;
@@ -21,7 +25,7 @@ classdef GVS_Dynamics < Dynamics
 
             % Init fsolve options
             obj.fsolve_opt = optimoptions('fsolve', 'Algorithm', 'trust-region-dogleg', ...
-                                            'Display', 'iter', 'SpecifyObjectiveGradient', true);
+                                            'Display', 'none', 'SpecifyObjectiveGradient', true);
         end
 
         %% Dynamics
