@@ -8,6 +8,7 @@ classdef GVS_Dynamics < Dynamics
         nx                  % dimension of the state space
         nact
         fsolve_opt          % Store fsolve options for Implicit Time Integration
+        % odeopts             % Store ode options for Stiff ODEs
     end
 
     methods
@@ -25,7 +26,9 @@ classdef GVS_Dynamics < Dynamics
 
             % Init fsolve options
             obj.fsolve_opt = optimoptions('fsolve', 'Algorithm', 'trust-region-dogleg', ...
-                                            'Display', 'none', 'SpecifyObjectiveGradient', true);
+                                            'Display', 'iter', 'SpecifyObjectiveGradient', true);
+
+            % obj.odeopts = odeset('Jacobian', @(t, xk) obj.analytical_derivatives(t, xk, obj.dynamics(t, xk, u), u));
         end
 
         %% Dynamics
