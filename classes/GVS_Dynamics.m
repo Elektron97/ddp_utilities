@@ -26,7 +26,7 @@ classdef GVS_Dynamics < Dynamics
 
             % Init fsolve options
             obj.fsolve_opt = optimoptions('fsolve', 'Algorithm', 'trust-region-dogleg', ...
-                                            'Display', 'iter', 'SpecifyObjectiveGradient', true);
+                                            'Display', 'none', 'SpecifyObjectiveGradient', true);
 
             % obj.odeopts = odeset('Jacobian', @(t, xk) obj.analytical_derivatives(t, xk, obj.dynamics(t, xk, u), u));
         end
