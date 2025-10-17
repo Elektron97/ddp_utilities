@@ -7,19 +7,25 @@ classdef QuadraticCost < Cost
         Q_f;    % Terminal Cost Weights
         Q;      % State Cost Weights
         R;      % Control Cost Weights
+
+        % Reference
+        x_star;
+        xf_star;
     end
     
     methods
         % Constructor
-        function obj = QuadraticCost(Q_f, Q, R)
+        function obj = QuadraticCost(Q_f, Q, R, x_star, xf_star)
             obj.Q_f = Q_f;
             obj.Q = Q;
             obj.R = R;
+            obj.x_star = x_star;
+            obj.xf_star = xf_star;
         end
         
         % Terminal state cost
-        function phi = phi(obj, x_f, x_star)
-            error_f = x_f - x_star;
+        function phi = phi(obj, x_f)
+            error_f = x_f - obj.xf_star;
             % % WrapToPi Correction on theta1 and theta2
             % error_f(1:2) = wrapToPi(error_f(1:2));
 
@@ -27,25 +33,27 @@ classdef QuadraticCost < Cost
         end
         
         % Terminal state cost derivatives
-        function phi_x = phi_x(obj, x_f, x_star)
-            error_f = x_f - x_star;
+        function phi_x = phi_x(obj, x_f)
+            error_f = x_f - obj.xf_star;
             % % WrapToPi Correction on theta1 and theta2
             % error_f(1:2) = wrapToPi(error_f(1:2));
 
             phi_x = obj.Q_f * error_f;
         end
-        function phi_xx = phi_xx(obj, ~, ~)
+        function phi_xx = phi_xx(obj, ~)
             phi_xx = obj.Q_f;
         end
         
         % Running cost
         function L = L(obj, x, u, dt)
-            L = (0.5 .* x.' * obj.Q * x) .* dt + (0.5 .* u.' * obj.R * u) .* dt;
+            e = x - obj.x_star;
+            L = (0.5 .* e.' * obj.Q * e) .* dt + (0.5 .* u.' * obj.R * u) .* dt;
         end
         
         % Running cost derivatives
         function L_x = L_x(obj, x, u, dt)
-            L_x = obj.Q*x*dt;
+            e = x - obj.x_star;
+            L_x = obj.Q*e*dt;
         end
         function L_u = L_u(obj, x, u, dt)
             L_u = (obj.R * u) .* dt;
