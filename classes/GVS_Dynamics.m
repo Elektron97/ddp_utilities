@@ -13,9 +13,11 @@ classdef GVS_Dynamics < Dynamics
 
     methods
         %% Constructor
-        function obj = GVS_Dynamics(robot_linkage)
+        function obj = GVS_Dynamics(robot_linkage, options)
             arguments
                 robot_linkage
+                options.max_iteration = 400;
+                options.max_ftolerance = 1e-6;
             end
             
             % Init
@@ -26,7 +28,9 @@ classdef GVS_Dynamics < Dynamics
 
             % Init fsolve options
             obj.fsolve_opt = optimoptions('fsolve', 'Algorithm', 'trust-region-dogleg', ...
-                                            'Display', 'none', 'SpecifyObjectiveGradient', true);
+                                            'Display', 'none', 'SpecifyObjectiveGradient', true, ...
+                                            'FunctionTolerance', options.max_ftolerance, ...
+                                            'MaxIterations', options.max_iteration);
 
             % obj.odeopts = odeset('Jacobian', @(t, xk) obj.analytical_derivatives(t, xk, obj.dynamics(t, xk, u), u));
         end
